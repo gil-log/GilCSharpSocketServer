@@ -3,6 +3,8 @@ using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading;
+using System.Diagnostics;
+using System.Text.RegularExpressions;
 
 namespace GilSocket
 {
@@ -121,10 +123,41 @@ namespace GilSocket
 
             String subData = data.Substring(0, eofIndex);
 
+            String command = "GilSocketResultForm " + subData;
+
+            ProcessStartInfo pri = new ProcessStartInfo();
+            Process pro = new Process();
+
+            pri.FileName = "cmd.exe";
+            pri.CreateNoWindow = true;
+            pri.UseShellExecute = false;
+
+            pri.RedirectStandardOutput = true;
+            pri.RedirectStandardInput = true;
+            pri.RedirectStandardError = true;
+
+            pro.StartInfo = pri;
+            pro.Start();
+
+            pro.StandardInput.Write(@"cd C:\Users\Gillog\source\repos\GilSocketResultForm\GilSocketResultForm\bin\Debug" + Environment.NewLine);
+            pro.StandardInput.Write(@command + Environment.NewLine);
+            pro.StandardInput.Close();
+            String resultValue = pro.StandardOutput.ReadToEnd();
+            pro.WaitForExit();
+            pro.Close();
+
+            //Regex reg = new Regex(@"GilSocketResultForm\s+[0-9]+\s+([0-9]+)[^0-9]");
+            //MatchCollection matchedColl = reg.Matches(resultValue);
 
 
 
-            return resultStr;
+            //int sendIndex = resultValue.IndexOf("send:");
+            //String result = resultValue.Substring(sendIndex, resultValue.Length);
+
+
+            Console.WriteLine("exe result = {0}", resultValue);
+
+            return resultValue;
         }
 
         private static void Send(Socket handler, String data)
