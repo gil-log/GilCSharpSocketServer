@@ -58,7 +58,16 @@ namespace GilSocket
                     listener.BeginAccept(new AsyncCallback(AcceptCallback), listener);
 
                     // 하나의 연결이 완료될때 까지 대기한다
+                    // 연결이 일어나면 바로 다음 연결을 기다린다.
                     allDone.WaitOne();
+
+
+
+
+
+
+
+
                 }
             }
             catch (Exception e)
@@ -146,10 +155,18 @@ namespace GilSocket
             pro.WaitForExit();
             pro.Close();
 
-            //Regex reg = new Regex(@"GilSocketResultForm\s+[0-9]+\s+([0-9]+)[^0-9]");
-            //MatchCollection matchedColl = reg.Matches(resultValue);
+            Regex reg = new Regex(@"GilSocketResultForm\s+[0-9]+\s+<send>([0-9]+)[^0-9]");
+            MatchCollection matchColl = reg.Matches(resultValue);
+
+            Console.WriteLine("beforemathed = {0}", resultValue);
 
 
+            foreach (Match matched in matchColl)
+            {
+                resultValue = matched.Groups[1].Value;
+                Console.WriteLine("mathed = {0}", resultValue);
+
+            }
 
             //int sendIndex = resultValue.IndexOf("send:");
             //String result = resultValue.Substring(sendIndex, resultValue.Length);
