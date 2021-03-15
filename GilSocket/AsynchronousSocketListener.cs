@@ -25,6 +25,7 @@ namespace GilSocket
     {
         // 쓰레드 신호가 false이므로 일단 쓰레드가 시작 안된다.
         // allDone.set() 해주어야 대기중인 쓰레드들이 시작된다.
+        // 쓰레드간 통신 기능 담당
         public static ManualResetEvent allDone = new ManualResetEvent(false);
 
         public AsynchronousSocketListener() { }
@@ -64,7 +65,50 @@ namespace GilSocket
                     // 비동기 콜백함수를 통해 다른 쓰레드에서 실행 되게 함,?!?!
                     // 신호 들어올 시 AcceptCallback 실행
                     // 비동기 작업 = 소켓 listener가 클라이언트 소켓의 연결을 수립 해주는것.
-                    // 그 비동기 작업 이후에 콜백 메소드가 
+                    // 그 비동기 작업 이후에 콜백 메소드가 실행 된다.
+                    // listenr는 AcceptCallback 함수의 매개변수로 사용된다.
+
+                    //BeginXXX()가 비동기 작업 완료를 위해 쓰레드를 시작한다.
+                    // 이 쓰레드가 AsyncCallback을 만든다.
+                    // BeginXXX() 메소드들은 애초에 다른 스레드를 사용.
+                    
+                    // ThreadPool에서 기본 소켓 I/O 작업 완료를 위해 발생한 임의 스레드에서 호출 된다.
+
+
+
+
+
+
+
+
+
+                    // 비동기 호출은 쓰레드 풀 안에서 사용된다.
+                    
+
+
+                    // 메인 쓰레드 > BeginAccept 까지만 비동기 쓰레드풀 생성 -> 이후 listener state로 이 한 쓰레드에서
+                    // 요청 처리 - 해제 까지 동기로?
+
+                    // thread - safe로 아는데, 애초에 BeginAccept -> EndAccept -> Recevie, Send 사용 가능??
+
+
+
+
+
+
+
+
+
+
+
+
+
+                    // 콜백 함수를 호출하는 비동기 메소드가 생성하는 쓰레드에서( BeginXXX() )
+                    // 이상적으로는 이 동일 스레드에서 요청을 처리하고, 요청 처리 CPU 바운드 작업 완료 이후 스레드를 해제 하는 것이 좋다.
+                    
+                    // 일박ㅇ적으로 CPU 바운드 작업은 스레드 풀 스레드를 사용한다.
+
+
                     listener.BeginAccept(new AsyncCallback(AcceptCallback), listener);
 
                     // 하나의 연결이 완료될때 까지 대기한다
@@ -72,16 +116,9 @@ namespace GilSocket
                     // BeginAccept 실행 하는 쓰레드가 여기서 비동기 구문이 끝날 때 까지 기다린다.
                     // just like 여기다 while(true) 걸어 놓는거랑 비슷
                     // 비동기 작업 = 소켓 linstener가 클라이언트 소켓 연결 수립 해주는게 끝나기 전까지
-                    // allDone.Reset() -> Console.WriteLine -> listener.BeginAccept() 을 무한 반복 한다.
-                    // WaitOne() 이전 함수들을 무한 반복한다.
+                    // allDone.Reset() -> Console.WriteLine -> listener.BeginAccept() 을 무한 반복 한다.??
+                    // WaitOne() 이전 함수들을 무한 반복한다.??
                     allDone.WaitOne();
-
-
-
-
-
-
-
 
                 }
             }
@@ -99,9 +136,10 @@ namespace GilSocket
 
             // 하나 이상의 대기 중 쓰레드를 동작하기 위해 이벤트 상태를 킨다
             // 다시 차단기 올리는 셈
+            // 
             allDone.Set();
 
-            // 쓰레드 확인
+            // 쓰레드 확인 시작
             Thread curThread = Thread.CurrentThread;
 
             Process proc = Process.GetCurrentProcess();
@@ -121,12 +159,13 @@ namespace GilSocket
             }
             Console.WriteLine("현재 프로세스에서 실행중인 스레드 수 : {0}", ptc.Count);
             Console.WriteLine("current thread id = {0}", curThread.ManagedThreadId);
-
+            // 쓰레드 확인 끝
 
 
             // 클라이언트 요청의 소켓 핸들러를 가져온다.
             Socket listener = (Socket)ar.AsyncState;
-            // 원격 호스트와 데이터 송수신이 가능한 새 소켓 객체 반환.
+            // 원격 호스트와 클라이언트의 연결시도를 비동기적으로 수립,
+            // 데이터 송수신이 가능한 새 소켓 객체 반환.
             Socket handler = listener.EndAccept(ar);
 
             // 상태 객체 생성
@@ -137,9 +176,14 @@ namespace GilSocket
             // state 클래스 socket 타입 workSocket에 저장한다.
             state.workSocket = handler;
 
-            // 매개 변수 = 저장할 버퍼, 수신 받은 버퍼를 저장할 위치(0), 버퍼 사이즈, 버퍼 플래그(0은 flag 아무것도 사용 안함), 콜백 함수, 상태 객체
+            // 매개 변수 = 저장할 버퍼, 수신 받은 버퍼를 저장할 인덱스 시작 위치(0), 버퍼 사이즈, 버퍼 플래그(0은 flag 아무것도 사용 안함), 콜백 함수, 상태 객체
             // 연결된 소켓에 비동기적 수신 시작.
-            // 비동기 콜백함수를 통해 다른 쓰레드에서 실행 되게 함,
+            // 비동기 콜백함수를 통해 다른 쓰레드에서 실행 되게 함???
+            // -> new AsyncCallback을 통해서 별도의 쓰레드에서 실행이 되고, 마지막 매개 변수로 주는 state 상태 개체를 통해서
+            // 비동기 메소드와 콜백 함수 사이에 정보 전달을 해줄 수 있다.
+
+            // 콜백 함수에는 EndReceive를 호출 해야 한다.(일반적)
+            // 비동기 작업(BeginReceive)이 종료되면 ReadCallback을 콜백 함수로 실행한다.
             handler.BeginReceive(state.buffer, 0, StateObject.BufferSize, 0, new AsyncCallback(ReadCallback), state);
 
         }
