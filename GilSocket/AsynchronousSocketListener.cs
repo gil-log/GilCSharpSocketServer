@@ -23,7 +23,8 @@ namespace GilSocket
 
     public class AsynchronousSocketListener
     {
-        // 쓰레드 신호
+        // 쓰레드 신호가 false이므로 일단 쓰레드가 시작 안된다.
+        // allDone.set() 해주어야 대기중인 쓰레드들이 시작된다.
         public static ManualResetEvent allDone = new ManualResetEvent(false);
 
         public AsynchronousSocketListener() { }
@@ -45,20 +46,34 @@ namespace GilSocket
             // 로컬 엔드 포인트에 소켓을 바인딩 해주고, 들어올 연결을 listen 한다.
             try
             {
+                // 위에서 생성한 로컬 엔드 포인트(서버 컴퓨터 IP, 포트 11000)와 소켓을 연결한다.
                 listener.Bind(localEndPoint);
+                // 소켓을 수신 상태로 둔다. 연결 큐의 최대 길이로 100을 둔다.
+                // 100개 까지 수신 큐에 대기 가능
                 listener.Listen(100);
 
                 while (true)
                 {
                     // 스레드 초기화로 이벤트를 논신호 상태로
+                    // 동작 중인 스레드가 멈춘다.
                     allDone.Reset();
 
                     // 연결 대기 listen하는 비동기 소켓을 시작한다.
                     Console.WriteLine("wating for a connection ...");
+                    // callback 메소드에서 EndAccept()을 실행해야된다.
+                    // 비동기 콜백함수를 통해 다른 쓰레드에서 실행 되게 함,?!?!
+                    // 신호 들어올 시 AcceptCallback 실행
+                    // 비동기 작업 = 소켓 listener가 클라이언트 소켓의 연결을 수립 해주는것.
+                    // 그 비동기 작업 이후에 콜백 메소드가 
                     listener.BeginAccept(new AsyncCallback(AcceptCallback), listener);
 
                     // 하나의 연결이 완료될때 까지 대기한다
                     // 연결이 일어나면 바로 다음 연결을 기다린다.
+                    // BeginAccept 실행 하는 쓰레드가 여기서 비동기 구문이 끝날 때 까지 기다린다.
+                    // just like 여기다 while(true) 걸어 놓는거랑 비슷
+                    // 비동기 작업 = 소켓 linstener가 클라이언트 소켓 연결 수립 해주는게 끝나기 전까지
+                    // allDone.Reset() -> Console.WriteLine -> listener.BeginAccept() 을 무한 반복 한다.
+                    // WaitOne() 이전 함수들을 무한 반복한다.
                     allDone.WaitOne();
 
 
@@ -81,16 +96,50 @@ namespace GilSocket
 
         public static void AcceptCallback(IAsyncResult ar)
         {
+
             // 하나 이상의 대기 중 쓰레드를 동작하기 위해 이벤트 상태를 킨다
+            // 다시 차단기 올리는 셈
             allDone.Set();
+
+            // 쓰레드 확인
+            Thread curThread = Thread.CurrentThread;
+
+            Process proc = Process.GetCurrentProcess();
+            ProcessThreadCollection ptc = proc.Threads;
+
+
+            int i = 1;
+
+            foreach (ProcessThread pt in ptc)
+            {
+                Console.WriteLine("******* {0} 번째 스레드 정보 *******", i++);
+                Console.WriteLine("ThreadId : {0}", pt.Id);            //스레드 ID
+                Console.WriteLine("시작시간 : {0}", pt.StartTime);    //스레드 시작시간
+                Console.WriteLine("우선순위 : {0}", pt.BasePriority);  //스레드 우선순위
+                Console.WriteLine("상태 : {0}", pt.ThreadState);      //스레드 상태
+                Console.WriteLine();
+            }
+            Console.WriteLine("현재 프로세스에서 실행중인 스레드 수 : {0}", ptc.Count);
+            Console.WriteLine("current thread id = {0}", curThread.ManagedThreadId);
+
+
 
             // 클라이언트 요청의 소켓 핸들러를 가져온다.
             Socket listener = (Socket)ar.AsyncState;
+            // 원격 호스트와 데이터 송수신이 가능한 새 소켓 객체 반환.
             Socket handler = listener.EndAccept(ar);
 
             // 상태 객체 생성
+            // 위에서 생성한 상태 객체, 버퍼 사이즈, 바이트 타입 버퍼, StringBuilder가 선언된 Class.
             StateObject state = new StateObject();
+
+            // 원격 호스트 소켓과 데이터 송수신이 가능한 hadnler 클라이언트 소켓 객체를
+            // state 클래스 socket 타입 workSocket에 저장한다.
             state.workSocket = handler;
+
+            // 매개 변수 = 저장할 버퍼, 수신 받은 버퍼를 저장할 위치(0), 버퍼 사이즈, 버퍼 플래그(0은 flag 아무것도 사용 안함), 콜백 함수, 상태 객체
+            // 연결된 소켓에 비동기적 수신 시작.
+            // 비동기 콜백함수를 통해 다른 쓰레드에서 실행 되게 함,
             handler.BeginReceive(state.buffer, 0, StateObject.BufferSize, 0, new AsyncCallback(ReadCallback), state);
 
         }
@@ -103,27 +152,43 @@ namespace GilSocket
             StateObject state = (StateObject)ar.AsyncState;
             Socket handler = state.workSocket;
 
-            // 클라이언트 소켓에서 받은 데이터를 읽는다.
+            // 클라이언트 소켓에서 받은 데이터 크기를 저장한다.
             int bytesRead = handler.EndReceive(ar);
 
             if (bytesRead > 0)
             {
+                // 클라이언트 소켓 객체로 부터 받은 byte buffer를 ASCII로 인코딩해서 상태객체 state의 StringBuilder에 append 한다.
                 state.sb.Append(Encoding.ASCII.GetString(state.buffer, 0, bytesRead));
 
-                // 파일 전송의 끝을 찾는다. EOF가 아니면 계속 읽는다.
+                // 상태 객체 state의 StringBuilder를 String으로 변환해서 Content에 저장한다.
                 content = state.sb.ToString();
+                // <EOF>의 index가 있으면 클라이언트 소켓 객체 handler와 수신받아 string으로 변환한 content를 가지고 send()를 실행한다.
                 if (content.IndexOf("<EOF>") > -1)
                 {
                     Console.WriteLine("Read {0} bytes from socket. \n Data : {1}", content.Length, content);
                     // 클라이언트에게 데이터를 다시 던져준다.
                     Send(handler, content);
                 }
+                // <EOF> index가 없으면 재귀 함수 처럼 다시 수신을 시작한다.
                 else
                 {
                     // EOF를 만나지 않아 계속 수신
                     handler.BeginReceive(state.buffer, 0, StateObject.BufferSize, 0, new AsyncCallback(ReadCallback), state);
                 }
             }
+        }
+
+        private static void Send(Socket handler, String data)
+        {
+            // 클라이언트로 받은 데이터를 가지고 form.exe를 process에서 실행한후 결과값을 return한다.
+            String transferData = TransferData(data);
+
+            // Stirng data를 Byte Data로 전환한다. ASCII 인코딩을 사용
+            byte[] byteData = Encoding.ASCII.GetBytes(transferData);
+
+            // 클라이언트에 데이터를 보낸다.
+            // 매개변수는 보낼 byte[] 데이터, 보낼 buffer의 index(0), 버퍼 크기, socket flag(0은 flag 안씀), 비동기 콜백함수를 통해 다른 쓰레드에서 실행 되게 함, 
+            handler.BeginSend(byteData, 0, byteData.Length, 0, new AsyncCallback(SendCallback), handler);
         }
 
         private static String TransferData(String data)
@@ -177,17 +242,6 @@ namespace GilSocket
             return resultValue;
         }
 
-        private static void Send(Socket handler, String data)
-        {
-            String transferData = TransferData(data);
-
-            // Stirng data를 Byte Data로 전환한다. ASCII 인코딩을 사용
-            byte[] byteData = Encoding.ASCII.GetBytes(transferData);
-
-            // 원격 디바이스에 데이터를 보낸다.
-            handler.BeginSend(byteData, 0, byteData.Length, 0, new AsyncCallback(SendCallback), handler);
-        }
-
         private static void SendCallback(IAsyncResult ar)
         {
             try
@@ -196,10 +250,13 @@ namespace GilSocket
                 Socket handler = (Socket)ar.AsyncState;
 
                 // 원격 디바이스에 데이터 전송을 완료한다.
+                // 보낸 byte 수를 return 한다. 아니면 오류를 return
                 int bytesSent = handler.EndSend(ar);
                 Console.WriteLine("Sent {0} bytes to client.", bytesSent);
 
+                // 클라이언트 소켓 handler의 송수신을 차단한다.
                 handler.Shutdown(SocketShutdown.Both);
+                // 클라이언트 소켓 handler의 연결을 닫고 리소스를 해제한다.
                 handler.Close();
             }
             catch (Exception e)
