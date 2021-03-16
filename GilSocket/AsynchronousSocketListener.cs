@@ -25,13 +25,20 @@ namespace GilSocket
     {
         // 쓰레드 신호가 false이므로 일단 쓰레드가 시작 안된다.
         // allDone.set() 해주어야 대기중인 쓰레드들이 시작된다.
-        // 쓰레드간 통신 기능 담당
+        // 쓰레드들간 통신 기능 담당
         public static ManualResetEvent allDone = new ManualResetEvent(false);
 
         public AsynchronousSocketListener() { }
 
         public static void StartListening()
         {
+            // 쓰레드 확인 시작
+            Thread curThread = Thread.CurrentThread;
+
+            Console.WriteLine("[StartListening] current thread id = {0}, hascode = {1}", curThread.ManagedThreadId, curThread.GetHashCode());
+            // 쓰레드 확인 끝
+
+
             // 소켓을 위한 로컬 엔드포인트를 승인해준다.
             // 컴퓨터의 dns 이름
             IPHostEntry ipHostInfo = Dns.GetHostEntry(Dns.GetHostName());
@@ -39,7 +46,7 @@ namespace GilSocket
             IPAddress ipAddress = IPAddress.Parse("0.0.0.0");
             IPEndPoint localEndPoint = new IPEndPoint(ipAddress, 11000);
 
-            Console.Write(ipAddress.ToString());
+            Console.Write("server ip = {0} \n", ipAddress.ToString());
 
             // TCP 소켓 생성
             Socket listener = new Socket(ipAddress.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
@@ -58,6 +65,7 @@ namespace GilSocket
                     // 스레드 초기화로 이벤트를 논신호 상태로
                     // 동작 중인 스레드가 멈춘다.
                     allDone.Reset();
+
 
                     // 연결 대기 listen하는 비동기 소켓을 시작한다.
                     Console.WriteLine("wating for a connection ...");
@@ -139,27 +147,33 @@ namespace GilSocket
             // 
             allDone.Set();
 
+
             // 쓰레드 확인 시작
             Thread curThread = Thread.CurrentThread;
-
-            Process proc = Process.GetCurrentProcess();
-            ProcessThreadCollection ptc = proc.Threads;
-
-
-            int i = 1;
-
-            foreach (ProcessThread pt in ptc)
-            {
-                Console.WriteLine("******* {0} 번째 스레드 정보 *******", i++);
-                Console.WriteLine("ThreadId : {0}", pt.Id);            //스레드 ID
-                Console.WriteLine("시작시간 : {0}", pt.StartTime);    //스레드 시작시간
-                Console.WriteLine("우선순위 : {0}", pt.BasePriority);  //스레드 우선순위
-                Console.WriteLine("상태 : {0}", pt.ThreadState);      //스레드 상태
-                Console.WriteLine();
-            }
-            Console.WriteLine("현재 프로세스에서 실행중인 스레드 수 : {0}", ptc.Count);
-            Console.WriteLine("current thread id = {0}", curThread.ManagedThreadId);
+            Console.WriteLine("[AcceptCallback] current thread id = {0}, hascode = {1}", curThread.ManagedThreadId, curThread.GetHashCode());
             // 쓰레드 확인 끝
+
+            /*            // 쓰레드 확인 시작
+                        Thread curThread = Thread.CurrentThread;
+
+                        Process proc = Process.GetCurrentProcess();
+                        ProcessThreadCollection ptc = proc.Threads;
+
+
+                        int i = 1;
+
+                        foreach (ProcessThread pt in ptc)
+                        {
+                            Console.WriteLine("******* {0} 번째 스레드 정보 *******", i++);
+                            Console.WriteLine("ThreadId : {0}", pt.Id);            //스레드 ID
+                            Console.WriteLine("시작시간 : {0}", pt.StartTime);    //스레드 시작시간
+                            Console.WriteLine("우선순위 : {0}", pt.BasePriority);  //스레드 우선순위
+                            Console.WriteLine("상태 : {0}", pt.ThreadState);      //스레드 상태
+                            Console.WriteLine();
+                        }
+                        Console.WriteLine("현재 프로세스에서 실행중인 스레드 수 : {0}", ptc.Count);
+                        Console.WriteLine("current thread id = {0}", curThread.ManagedThreadId);
+                        // 쓰레드 확인 끝*/
 
 
             // 클라이언트 요청의 소켓 핸들러를 가져온다.
@@ -190,6 +204,14 @@ namespace GilSocket
 
         public static void ReadCallback(IAsyncResult ar)
         {
+
+
+            // 쓰레드 확인 시작
+            Thread curThread = Thread.CurrentThread;
+            Console.WriteLine("[ReadCallback] current thread id = {0}, hascode = {1}", curThread.ManagedThreadId, curThread.GetHashCode());
+            // 쓰레드 확인 끝
+
+
             String content = String.Empty;
 
             // 비동기 상태 객체에서 소켓 핸들러와 상태 객체를 찾는다
@@ -267,13 +289,13 @@ namespace GilSocket
             Regex reg = new Regex(@"GilSocketResultForm\s+[0-9]+\s+<send>([0-9]+)[^0-9]");
             MatchCollection matchColl = reg.Matches(resultValue);
 
-            Console.WriteLine("beforemathed = {0}", resultValue);
+            //Console.WriteLine("beforemathed = {0}", resultValue);
 
 
             foreach (Match matched in matchColl)
             {
                 resultValue = matched.Groups[1].Value;
-                Console.WriteLine("mathed = {0}", resultValue);
+                //Console.WriteLine("mathed = {0}", resultValue);
 
             }
 
@@ -288,6 +310,11 @@ namespace GilSocket
 
         private static void SendCallback(IAsyncResult ar)
         {
+            // 쓰레드 확인 시작
+            Thread curThread = Thread.CurrentThread;
+            Console.WriteLine("[SendCallback] current thread id = {0}, hascode = {1}", curThread.ManagedThreadId, curThread.GetHashCode());
+            // 쓰레드 확인 끝
+
             try
             {
                 // 소켓으로 부터 상태 객체를 가져온다.
@@ -307,13 +334,62 @@ namespace GilSocket
             {
                 Console.WriteLine(e.ToString());
             }
+
+
+
+
+
+
+
+
+
+            // 스레드 반환 해야하는데,,,
+
+
+            finally
+            {
+                curThread.Interrupt();
+            }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
         }
 
         public static void Main(String[] args)
         {
+            // 쓰레드 확인 시작
+            Thread curThread = Thread.CurrentThread;
+            Console.WriteLine("[Main] current thread id = {0}, hascode = {1}", curThread.ManagedThreadId, curThread.GetHashCode());
+            // 쓰레드 확인 끝
+
+            Thread overWatch = new Thread(new ThreadStart(WatchThread));
+            overWatch.Start();
+
             StartListening();
             Console.WriteLine("Listening Started...");
             //return 0;
+        }
+
+        public static void WatchThread()
+        {
+            if (allDone.WaitOne())
+            {
+                // 쓰레드 확인 시작
+                Thread curThread = Thread.CurrentThread;
+                Console.WriteLine("[WatchThread] current thread id = {0}, hascode = {1}", curThread.ManagedThreadId, curThread.GetHashCode());
+                // 쓰레드 확인 끝
+            }
         }
     }
 }
