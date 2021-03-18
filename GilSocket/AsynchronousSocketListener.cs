@@ -142,6 +142,10 @@ namespace GilSocket
 
                     listener.BeginAccept(new AsyncCallback(AcceptCallback), listener);
 
+                    //Thread afterThread = Thread.CurrentThread;
+                    //Console.WriteLine("[AfterBeginAccept] current thread id = {0}, hascode = {1}", afterThread.ManagedThreadId, afterThread.GetHashCode());
+
+
                     ViewAvailableThreadsAtMoment("begin Aceept");
                     // 하나의 연결이 완료될때 까지 대기한다
                     // 연결이 일어나면 바로 다음 연결을 기다린다.
@@ -233,8 +237,8 @@ namespace GilSocket
 
             // 쓰레드 확인 시작
             try {
-                Thread curThread = Thread.CurrentThread;
-                Console.WriteLine("[ReadCallback] current thread id = {0}, hascode = {1}", curThread.ManagedThreadId, curThread.GetHashCode()); 
+                //Thread curThread = Thread.CurrentThread;
+                //Console.WriteLine("[ReadCallback] current thread id = {0}, hascode = {1}", curThread.ManagedThreadId, curThread.GetHashCode()); 
             }
             catch(Exception e) {
                 Console.WriteLine(e.ToString());
@@ -394,6 +398,7 @@ namespace GilSocket
                 handler.Shutdown(SocketShutdown.Both);
                 // 클라이언트 소켓 handler의 연결을 닫고 리소스를 해제한다.
                 handler.Close();
+                curThread.Interrupt();
             }
             catch (Exception e)
             {
@@ -413,7 +418,6 @@ namespace GilSocket
 
             finally
             {
-                curThread.Interrupt();
             }
 
 
