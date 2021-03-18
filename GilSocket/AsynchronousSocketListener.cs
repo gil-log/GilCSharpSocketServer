@@ -21,6 +21,7 @@ namespace GilSocket
         public StringBuilder sb = new StringBuilder();
     }
 
+
     public class AsynchronousSocketListener
     {
         // 쓰레드 신호가 false이므로 일단 쓰레드가 시작 안된다.
@@ -30,7 +31,17 @@ namespace GilSocket
 
         public AsynchronousSocketListener() { }
 
-        public static void StartListening()
+        public static void ViewAvailableThreadsAtMoment(string moment)
+        {
+            int worker = 0;
+            int asyncIO = 0;
+            
+            ThreadPool.GetAvailableThreads(out worker, out asyncIO);
+
+            Console.WriteLine("[Available][{0}] Worker Threads = {1}, Max AsyncIO Threads = {2}", moment, worker, asyncIO);
+        }
+
+    public static void StartListening()
         {
             // 쓰레드 확인 시작
             Thread curThread = Thread.CurrentThread;
@@ -48,6 +59,15 @@ namespace GilSocket
 
             Console.Write("server ip = {0} \n", ipAddress.ToString());
 
+
+            int workerThreads;
+            int portThreads;
+
+            ThreadPool.GetMaxThreads(out workerThreads, out portThreads);
+
+            Console.WriteLine("[Max] Worker Threads = {0}, Max AsyncIO Threads = {1}", workerThreads, portThreads);
+            ViewAvailableThreadsAtMoment("Socket Create");
+
             // TCP 소켓 생성
             Socket listener = new Socket(ipAddress.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
 
@@ -56,14 +76,17 @@ namespace GilSocket
             {
                 // 위에서 생성한 로컬 엔드 포인트(서버 컴퓨터 IP, 포트 11000)와 소켓을 연결한다.
                 listener.Bind(localEndPoint);
+                ViewAvailableThreadsAtMoment("Socket Bind");
                 // 소켓을 수신 상태로 둔다. 연결 큐의 최대 길이로 100을 둔다.
                 // 100개 까지 수신 큐에 대기 가능
                 listener.Listen(100);
+                ViewAvailableThreadsAtMoment("Socket listen");
 
                 while (true)
                 {
                     // 스레드 초기화로 이벤트를 논신호 상태로
                     // 동작 중인 스레드가 멈춘다.
+                    ViewAvailableThreadsAtMoment("thread reset");
                     allDone.Reset();
 
 
@@ -119,6 +142,7 @@ namespace GilSocket
 
                     listener.BeginAccept(new AsyncCallback(AcceptCallback), listener);
 
+                    ViewAvailableThreadsAtMoment("begin Aceept");
                     // 하나의 연결이 완료될때 까지 대기한다
                     // 연결이 일어나면 바로 다음 연결을 기다린다.
                     // BeginAccept 실행 하는 쓰레드가 여기서 비동기 구문이 끝날 때 까지 기다린다.
@@ -127,6 +151,7 @@ namespace GilSocket
                     // allDone.Reset() -> Console.WriteLine -> listener.BeginAccept() 을 무한 반복 한다.??
                     // WaitOne() 이전 함수들을 무한 반복한다.??
                     allDone.WaitOne();
+                    ViewAvailableThreadsAtMoment("wait One");
 
                 }
             }
@@ -207,10 +232,17 @@ namespace GilSocket
 
 
             // 쓰레드 확인 시작
-            Thread curThread = Thread.CurrentThread;
-            Console.WriteLine("[ReadCallback] current thread id = {0}, hascode = {1}", curThread.ManagedThreadId, curThread.GetHashCode());
+            try {
+                Thread curThread = Thread.CurrentThread;
+                Console.WriteLine("[ReadCallback] current thread id = {0}, hascode = {1}", curThread.ManagedThreadId, curThread.GetHashCode()); 
+            }
+            catch(Exception e) {
+                Console.WriteLine(e.ToString());
+            }
+            
             // 쓰레드 확인 끝
 
+            ViewAvailableThreadsAtMoment("ReadCallback");
 
             String content = String.Empty;
 
@@ -268,26 +300,62 @@ namespace GilSocket
             ProcessStartInfo pri = new ProcessStartInfo();
             Process pro = new Process();
 
-            pri.FileName = "cmd.exe";
-            pri.CreateNoWindow = true;
-            pri.UseShellExecute = false;
+            /*            pri.FileName = "cmd.exe";
+                        pri.CreateNoWindow = true;
+                        pri.UseShellExecute = false;
 
+                        pri.RedirectStandardOutput = true;
+                        pri.RedirectStandardInput = true;
+                        pri.RedirectStandardError = true;
+
+                        pro.StartInfo = pri;
+                        pro.Start();
+
+                        pro.StandardInput.Write(@"cd C:\Users\Gillog\source\repos\GilSocketResultForm\GilSocketResultForm\bin\Debug" + Environment.NewLine);
+                        pro.StandardInput.Write(@command + Environment.NewLine);
+                        pro.StandardInput.Close();
+                        String resultValue = pro.StandardOutput.ReadToEnd();
+                        pro.WaitForExit();
+                        pro.Close();*/
+
+            pri.FileName = "C:/Users/Gillog/source/repos/GilSocketResultForm/GilSocketResultForm/bin/Debug/GilSocketResultForm.exe";
+            pri.UseShellExecute = false;
             pri.RedirectStandardOutput = true;
             pri.RedirectStandardInput = true;
-            pri.RedirectStandardError = true;
+
+            pri.Arguments = subData;
 
             pro.StartInfo = pri;
+
             pro.Start();
 
-            pro.StandardInput.Write(@"cd C:\Users\Gillog\source\repos\GilSocketResultForm\GilSocketResultForm\bin\Debug" + Environment.NewLine);
-            pro.StandardInput.Write(@command + Environment.NewLine);
-            pro.StandardInput.Close();
+            //pro.StandardInput.Write(subData);
+            //pro.StandardInput.Close();
+
             String resultValue = pro.StandardOutput.ReadToEnd();
             pro.WaitForExit();
             pro.Close();
 
 
-            Regex reg = new Regex(@"GilSocketResultForm\s+[0-9]+\s+<send>([0-9]+)[^0-9]");
+            /*
+
+                        Regex reg = new Regex(@"GilSocketResultForm\s+[0-9]+\s+<send>([0-9]+)[^0-9]");
+                        MatchCollection matchColl = reg.Matches(resultValue);
+
+                        //Console.WriteLine("beforemathed = {0}", resultValue);
+
+
+                        foreach (Match matched in matchColl)
+                        {
+                            resultValue = matched.Groups[1].Value;
+                            //Console.WriteLine("mathed = {0}", resultValue);
+
+                        }
+            */
+            //int sendIndex = resultValue.IndexOf("send:");
+            //String result = resultValue.Substring(sendIndex, resultValue.Length);
+
+            Regex reg = new Regex(@"<send>([0-9]+)");
             MatchCollection matchColl = reg.Matches(resultValue);
 
             //Console.WriteLine("beforemathed = {0}", resultValue);
@@ -299,10 +367,6 @@ namespace GilSocket
                 //Console.WriteLine("mathed = {0}", resultValue);
 
             }
-
-            //int sendIndex = resultValue.IndexOf("send:");
-            //String result = resultValue.Substring(sendIndex, resultValue.Length);
-
 
             Console.WriteLine("exe result = {0}", resultValue);
 
