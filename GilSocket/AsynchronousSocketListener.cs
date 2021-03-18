@@ -286,6 +286,7 @@ namespace GilSocket
             pro.WaitForExit();
             pro.Close();
 
+
             Regex reg = new Regex(@"GilSocketResultForm\s+[0-9]+\s+<send>([0-9]+)[^0-9]");
             MatchCollection matchColl = reg.Matches(resultValue);
 
