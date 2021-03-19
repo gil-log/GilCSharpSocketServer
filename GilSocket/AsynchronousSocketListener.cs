@@ -5,6 +5,7 @@ using System.Text;
 using System.Threading;
 using System.Diagnostics;
 using System.Text.RegularExpressions;
+using System.Collections.Generic;
 
 namespace GilSocket
 {
@@ -24,6 +25,9 @@ namespace GilSocket
 
     public class AsynchronousSocketListener
     {
+
+        public static Dic
+
         // 쓰레드 신호가 false이므로 일단 쓰레드가 시작 안된다.
         // allDone.set() 해주어야 대기중인 쓰레드들이 시작된다.
         // 쓰레드들간 통신 기능 담당
