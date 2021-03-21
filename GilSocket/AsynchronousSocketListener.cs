@@ -26,7 +26,7 @@ namespace GilSocket
     public class AsynchronousSocketListener
     {
 
-        public static Dictionary<int, StateObject> socketDic;
+        public static Dictionary<int, StateObject> socketDic = new Dictionary<int, StateObject>();
 
         // 쓰레드 신호가 false이므로 일단 쓰레드가 시작 안된다.
         // allDone.set() 해주어야 대기중인 쓰레드들이 시작된다.
@@ -39,7 +39,7 @@ namespace GilSocket
         {
             int worker = 0;
             int asyncIO = 0;
-            
+
             ThreadPool.GetAvailableThreads(out worker, out asyncIO);
 
             Console.WriteLine("[Available][{0}] Worker Threads = {1}, Max AsyncIO Threads = {2}", moment, worker, asyncIO);
@@ -55,7 +55,7 @@ namespace GilSocket
 
         }
 
-    public static void StartListening()
+        public static void StartListening()
         {
             // 쓰레드 확인 시작
             Thread curThread = Thread.CurrentThread;
@@ -242,12 +242,12 @@ namespace GilSocket
             // 쓰레드 확인 시작
             try {
                 Thread curThread = Thread.CurrentThread;
-                Console.WriteLine("[ReadCallback] current thread id = {0}, hascode = {1}", curThread.ManagedThreadId, curThread.GetHashCode()); 
+                Console.WriteLine("[ReadCallback] current thread id = {0}, hascode = {1}", curThread.ManagedThreadId, curThread.GetHashCode());
             }
-            catch(Exception e) {
+            catch (Exception e) {
                 Console.WriteLine(e.ToString());
             }
-            
+
             // 쓰레드 확인 끝
 
             ViewAvailableThreadsAtMoment("ReadCallback");
@@ -273,7 +273,18 @@ namespace GilSocket
                 {
                     Console.WriteLine("Read {0} bytes from socket. \n Data : {1}", content.Length, content);
                     // 클라이언트에게 데이터를 다시 던져준다.
-                    Send(handler, content);
+                    //Send(handler, content);
+                    SendToEXE(state, content);
+
+                } else if (content.IndexOf("<REOF>") > -1)
+                {
+                    Console.WriteLine("Recall Read {0} bytes from socket. \n Data : {1}", content.Length, content);
+
+                    Resend(state, content);
+
+
+
+
                 }
                 // <EOF> index가 없으면 재귀 함수 처럼 다시 수신을 시작한다.
                 else
@@ -282,6 +293,58 @@ namespace GilSocket
                     handler.BeginReceive(state.buffer, 0, StateObject.BufferSize, 0, new AsyncCallback(ReadCallback), state);
                 }
             }
+        }
+
+        private static void Resend(StateObject state, string content)
+        {
+            Console.WriteLine("Resend Content = {0}", content);
+
+            int spaceIndex = content.IndexOf(" ");
+
+            string data = content.Substring(0, spaceIndex);
+
+            int reofIndex = content.IndexOf("<REOF>");
+            Console.WriteLine("spaceIndex = {0}, reofIndex ={1}", spaceIndex, reofIndex);
+
+            string strKey = content.Substring(spaceIndex, reofIndex - spaceIndex);
+
+            Console.WriteLine("data = {0}, key ={1} content = {2}", data, strKey, content);
+
+            int key = Int32.Parse(strKey);
+
+            StateObject resendState = GetSocketState(key);
+            Socket handler = resendState.workSocket;
+
+            socketDic.Remove(key);
+            Console.WriteLine("Socket Dictionary Removed Key = {0}", key);
+
+            try
+            {
+                // 소켓으로 부터 상태 객체를 가져온다.
+                Socket exeSocketHandler = state.workSocket;
+
+                // 클라이언트 소켓 handler의 송수신을 차단한다.
+                exeSocketHandler.Shutdown(SocketShutdown.Both);
+                // 클라이언트 소켓 handler의 연결을 닫고 리소스를 해제한다.
+                exeSocketHandler.Close();
+                //curThread.Interrupt();
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e.ToString());
+            }
+
+
+            byte[] byteData = Encoding.ASCII.GetBytes(data);
+            handler.BeginSend(byteData, 0, byteData.Length, 0, new AsyncCallback(SendCallback), handler);
+
+
+        }
+
+        private static StateObject GetSocketState(int key)
+        {
+            StateObject state = socketDic[key];
+            return state;
         }
 
         private static int GetRandomNumber()
@@ -293,27 +356,58 @@ namespace GilSocket
 
         private static bool IsAlreadyInDictionaryKey(int randomKey)
         {
-            foreach(int key in socketDic.Keys)
+
+            if (socketDic.ContainsKey(randomKey))
             {
-                if(randomKey == key)
-                {
-                    return true;
-                }
+                return true;
             }
 
             return false;
         }
 
-        private static void SaveSocketState(StateObject state, int key)
+        private static bool SaveSocketState(StateObject state, int key)
         {
             if (!IsAlreadyInDictionaryKey(key))
             {
                 socketDic.Add(key, state);
-            } else
-            {
-                int newKey = GetRandomNumber();
-                SaveSocketState(state, newKey);
+                return true;
             }
+            return false;
+        }
+
+        private static void SendToEXE(StateObject state, String data)
+        {
+            int key = 0;
+            bool socketSaved = false;
+            while (!socketSaved)
+            {
+                key = GetRandomNumber();
+                socketSaved = SaveSocketState(state, key);
+            }
+
+            int eofIndex = data.IndexOf("<EOF>");
+
+            String subData = data.Substring(0, eofIndex);
+
+            ProcessStartInfo pri = new ProcessStartInfo();
+            Process pro = new Process();
+
+            pri.FileName = "C:/Users/Gillog/source/repos/GilSocketResultForm/GilSocketResultForm/bin/Debug/GilSocketResultForm.exe";
+            pri.UseShellExecute = false;
+            pri.RedirectStandardOutput = true;
+            pri.RedirectStandardInput = true;
+
+            // space바로 개행, [0] = subData, [1] = ...
+            Console.WriteLine("send data = {0}, key = {1}", subData, key);
+            pri.Arguments = subData + " " + key;
+
+            pro.StartInfo = pri;
+
+            pro.Start();
+
+            pro.WaitForExit();
+            pro.Close();
+
         }
 
         private static void Send(Socket handler, String data)
