@@ -26,7 +26,7 @@ namespace GilSocket
     public class AsynchronousSocketListener
     {
 
-        public static Dictionary<string, StateObject> socketDic;
+        public static Dictionary<int, StateObject> socketDic;
 
         // 쓰레드 신호가 false이므로 일단 쓰레드가 시작 안된다.
         // allDone.set() 해주어야 대기중인 쓰레드들이 시작된다.
@@ -284,17 +284,49 @@ namespace GilSocket
             }
         }
 
+        private static int GetRandomNumber()
+        {
+            Random random = new Random();
+            int randNum = random.Next();
+            return randNum;
+        }
+
+        private static bool IsAlreadyInDictionaryKey(int randomKey)
+        {
+            foreach(int key in socketDic.Keys)
+            {
+                if(randomKey == key)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private static void SaveSocketState(StateObject state, int key)
+        {
+            if (!IsAlreadyInDictionaryKey(key))
+            {
+                socketDic.Add(key, state);
+            } else
+            {
+                int newKey = GetRandomNumber();
+                SaveSocketState(state, newKey);
+            }
+        }
+
         private static void Send(Socket handler, String data)
         {
             // 클라이언트로 받은 데이터를 가지고 form.exe를 process에서 실행한후 결과값을 return한다.
             String transferData = TransferData(data);
 
             // Stirng data를 Byte Data로 전환한다. ASCII 인코딩을 사용
-            byte[] byteData = Encoding.ASCII.GetBytes(transferData);
+            //byte[] byteData = Encoding.ASCII.GetBytes(transferData);
 
             // 클라이언트에 데이터를 보낸다.
             // 매개변수는 보낼 byte[] 데이터, 보낼 buffer의 index(0), 버퍼 크기, socket flag(0은 flag 안씀), 비동기 콜백함수를 통해 다른 쓰레드에서 실행 되게 함, 
-            handler.BeginSend(byteData, 0, byteData.Length, 0, new AsyncCallback(SendCallback), handler);
+            //handler.BeginSend(byteData, 0, byteData.Length, 0, new AsyncCallback(SendCallback), handler);
         }
 
         private static String TransferData(String data)
