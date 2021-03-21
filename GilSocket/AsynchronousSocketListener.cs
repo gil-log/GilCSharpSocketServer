@@ -26,7 +26,7 @@ namespace GilSocket
     public class AsynchronousSocketListener
     {
 
-        public static Dic
+        public static Dictionary<string, StateObject> socketDic;
 
         // 쓰레드 신호가 false이므로 일단 쓰레드가 시작 안된다.
         // allDone.set() 해주어야 대기중인 쓰레드들이 시작된다.
