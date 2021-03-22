@@ -9,7 +9,6 @@ using System.Collections.Generic;
 
 namespace GilSocket
 {
-
     public class StateObject
     {
         // client socket
@@ -21,7 +20,6 @@ namespace GilSocket
         // received data string
         public StringBuilder sb = new StringBuilder();
     }
-
 
     public class AsynchronousSocketListener
     {
@@ -63,7 +61,6 @@ namespace GilSocket
             Console.WriteLine("[StartListening] current thread id = {0}, hascode = {1}", curThread.ManagedThreadId, curThread.GetHashCode());
             // 쓰레드 확인 끝
 
-
             // 소켓을 위한 로컬 엔드포인트를 승인해준다.
             // 컴퓨터의 dns 이름
             IPHostEntry ipHostInfo = Dns.GetHostEntry(Dns.GetHostName());
@@ -80,8 +77,8 @@ namespace GilSocket
             ThreadPool.GetMaxThreads(out workerThreads, out portThreads);
 
             Console.WriteLine("[Max] Worker Threads = {0}, Max AsyncIO Threads = {1}", workerThreads, portThreads);
-            ViewAvailableThreadsAtMoment("Socket Create");
-            ViewMemoryAtMoment("Socket Create");
+            //ViewAvailableThreadsAtMoment("Socket Create");
+            //ViewMemoryAtMoment("Socket Create");
 
             // TCP 소켓 생성
             Socket listener = new Socket(ipAddress.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
@@ -101,7 +98,7 @@ namespace GilSocket
                 {
                     // 스레드 초기화로 이벤트를 논신호 상태로
                     // 동작 중인 스레드가 멈춘다.
-                    ViewAvailableThreadsAtMoment("thread reset");
+                    //ViewAvailableThreadsAtMoment("thread reset");
                     allDone.Reset();
 
 
@@ -141,8 +138,8 @@ namespace GilSocket
                     //Thread afterThread = Thread.CurrentThread;
                     //Console.WriteLine("[AfterBeginAccept] current thread id = {0}, hascode = {1}", afterThread.ManagedThreadId, afterThread.GetHashCode());
 
-                    ViewAvailableThreadsAtMoment("begin Aceept");
-                    ViewMemoryAtMoment("begin Aceept");
+                    //ViewAvailableThreadsAtMoment("begin Aceept");
+                    //ViewMemoryAtMoment("begin Aceept");
                     // 하나의 연결이 완료될때 까지 대기한다
                     // 연결이 일어나면 바로 다음 연결을 기다린다.
                     // BeginAccept 실행 하는 쓰레드가 여기서 비동기 구문이 끝날 때 까지 기다린다.
@@ -151,8 +148,8 @@ namespace GilSocket
                     // allDone.Reset() -> Console.WriteLine -> listener.BeginAccept() 을 무한 반복 한다.??
                     // WaitOne() 이전 함수들을 무한 반복한다.??
                     allDone.WaitOne();
-                    ViewAvailableThreadsAtMoment("wait One");
-                    ViewMemoryAtMoment("wait One");
+                    //ViewAvailableThreadsAtMoment("wait One");
+                    //ViewMemoryAtMoment("wait One");
 
                 }
             }
@@ -179,7 +176,7 @@ namespace GilSocket
             // 쓰레드 확인 시작
             Thread curThread = Thread.CurrentThread;
             Console.WriteLine("[AcceptCallback] current thread id = {0}, hascode = {1}", curThread.ManagedThreadId, curThread.GetHashCode());
-            ViewMemoryAtMoment("AcceptCallback");
+            //ViewMemoryAtMoment("AcceptCallback");
 
 
             // 쓰레드 확인 끝
@@ -281,9 +278,6 @@ namespace GilSocket
                     Console.WriteLine("Recall Read {0} bytes from socket. \n Data : {1}", content.Length, content);
 
                     Resend(state, content);
-
-
-
 
                 }
                 // <EOF> index가 없으면 재귀 함수 처럼 다시 수신을 시작한다.
@@ -410,6 +404,20 @@ namespace GilSocket
 
         }
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
         private static void Send(Socket handler, String data)
         {
             // 클라이언트로 받은 데이터를 가지고 form.exe를 process에서 실행한후 결과값을 return한다.
@@ -422,6 +430,10 @@ namespace GilSocket
             // 매개변수는 보낼 byte[] 데이터, 보낼 buffer의 index(0), 버퍼 크기, socket flag(0은 flag 안씀), 비동기 콜백함수를 통해 다른 쓰레드에서 실행 되게 함, 
             //handler.BeginSend(byteData, 0, byteData.Length, 0, new AsyncCallback(SendCallback), handler);
         }
+
+
+
+
 
         private static String TransferData(String data)
         {
@@ -507,12 +519,20 @@ namespace GilSocket
             return resultValue;
         }
 
+
+
+
+
+
+
+
+
         private static void SendCallback(IAsyncResult ar)
         {
             // 쓰레드 확인 시작
             Thread curThread = Thread.CurrentThread;
             Console.WriteLine("[SendCallback] current thread id = {0}, hascode = {1}", curThread.ManagedThreadId, curThread.GetHashCode());
-            ViewMemoryAtMoment("SendCallback");
+            //ViewMemoryAtMoment("SendCallback");
             // 쓰레드 확인 끝
 
             try
@@ -542,8 +562,8 @@ namespace GilSocket
             finally
             {
 
-                ViewAvailableThreadsAtMoment("SendCallback Finally");
-                ViewMemoryAtMoment("SendCallback Finally");
+                //ViewAvailableThreadsAtMoment("SendCallback Finally");
+                //ViewMemoryAtMoment("SendCallback Finally");
 
                 Console.WriteLine("end!!!!!");
                 Console.WriteLine();
@@ -568,13 +588,13 @@ namespace GilSocket
 
         public static void WatchThread()
         {
-            if (allDone.WaitOne())
-            {
-                // 쓰레드 확인 시작
-                Thread curThread = Thread.CurrentThread;
-                Console.WriteLine("[WatchThread] current thread id = {0}, hascode = {1}", curThread.ManagedThreadId, curThread.GetHashCode());
-                // 쓰레드 확인 끝
-            }
+
+            Thread.Sleep(3000);
+            ViewAvailableThreadsAtMoment("OverWatch");
+            ViewMemoryAtMoment("OverWatch");
+
+            WatchThread();
+
         }
     }
 }
