@@ -66,7 +66,7 @@ namespace GilSocket
             IPHostEntry ipHostInfo = Dns.GetHostEntry(Dns.GetHostName());
             //IPAddress ipAddress = ipHostInfo.AddressList[0];
             IPAddress ipAddress = IPAddress.Parse("0.0.0.0");
-            IPEndPoint localEndPoint = new IPEndPoint(ipAddress, 11000);
+            IPEndPoint localEndPoint = new IPEndPoint(ipAddress, 11100);
 
             Console.Write("server ip = {0} \n", ipAddress.ToString());
 
@@ -228,14 +228,10 @@ namespace GilSocket
             // 비동기 작업(BeginReceive)이 종료되면 ReadCallback을 콜백 함수로 실행한다.
             handler.BeginReceive(state.buffer, 0, StateObject.BufferSize, 0, new AsyncCallback(ReadCallback), state);
 
-
-
         }
 
         public static void ReadCallback(IAsyncResult ar)
         {
-
-
             // 쓰레드 확인 시작
             try {
                 Thread curThread = Thread.CurrentThread;
@@ -246,7 +242,6 @@ namespace GilSocket
             }
 
             // 쓰레드 확인 끝
-
             ViewAvailableThreadsAtMoment("ReadCallback");
 
             String content = String.Empty;
@@ -386,7 +381,8 @@ namespace GilSocket
             ProcessStartInfo pri = new ProcessStartInfo();
             Process pro = new Process();
 
-            pri.FileName = "C:/Users/Gillog/source/repos/GilSocketResultForm/GilSocketResultForm/bin/Debug/GilSocketResultForm.exe";
+            pri.FileName = "C:/Users/RSN/Desktop/GilSocket/HtmlExe/GilSocketResultForm.exe";
+            //pri.FileName = "C:/Users/Gillog/source/repos/GilSocketResultForm/GilSocketResultForm/bin/Debug/GilSocketResultForm.exe";
             pri.UseShellExecute = false;
             pri.RedirectStandardOutput = true;
             pri.RedirectStandardInput = true;
@@ -464,7 +460,8 @@ namespace GilSocket
                         pro.WaitForExit();
                         pro.Close();*/
 
-            pri.FileName = "C:/Users/Gillog/source/repos/GilSocketResultForm/GilSocketResultForm/bin/Debug/GilSocketResultForm.exe";
+            //pri.FileName = "C:/Users/Gillog/source/repos/GilSocketResultForm/GilSocketResultForm/bin/Debug/GilSocketResultForm.exe";
+            pri.FileName = "C:/Users/RSN/Desktop/GilSocket/HtmlExe/GilSocketResultForm.exe";
             pri.UseShellExecute = false;
             pri.RedirectStandardOutput = true;
             pri.RedirectStandardInput = true;
