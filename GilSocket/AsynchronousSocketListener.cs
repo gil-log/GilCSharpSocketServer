@@ -6,6 +6,7 @@ using System.Threading;
 using System.Diagnostics;
 using System.Text.RegularExpressions;
 using System.Collections.Generic;
+using System.Collections.Concurrent;
 
 namespace GilSocket
 {
@@ -24,7 +25,8 @@ namespace GilSocket
     public class AsynchronousSocketListener
     {
 
-        public static Dictionary<int, StateObject> socketDic = new Dictionary<int, StateObject>();
+        //public static Dictionary<int, StateObject> socketDic = new Dictionary<int, StateObject>();
+        public static ConcurrentDictionary<int, StateObject> socketDic = new ConcurrentDictionary<int, StateObject>();
 
         // 쓰레드 신호가 false이므로 일단 쓰레드가 시작 안된다.
         // allDone.set() 해주어야 대기중인 쓰레드들이 시작된다.
@@ -91,7 +93,7 @@ namespace GilSocket
                 //ViewAvailableThreadsAtMoment("Socket Bind");
                 // 소켓을 수신 상태로 둔다. 연결 큐의 최대 길이로 100을 둔다.
                 // 100개 까지 수신 큐에 대기 가능
-                listener.Listen(100);
+                listener.Listen(1000);
                 //ViewAvailableThreadsAtMoment("Socket listen");
 
                 while (true)
@@ -100,6 +102,7 @@ namespace GilSocket
                     // 동작 중인 스레드가 멈춘다.
                     //ViewAvailableThreadsAtMoment("thread reset");
                     allDone.Reset();
+                    Console.WriteLine("[ManualResetEvent] [allDone.Reset()]");
 
 
                     // 연결 대기 listen하는 비동기 소켓을 시작한다.
@@ -147,7 +150,13 @@ namespace GilSocket
                     // 비동기 작업 = 소켓 linstener가 클라이언트 소켓 연결 수립 해주는게 끝나기 전까지
                     // allDone.Reset() -> Console.WriteLine -> listener.BeginAccept() 을 무한 반복 한다.??
                     // WaitOne() 이전 함수들을 무한 반복한다.??
+
+                    Console.WriteLine("[ListeningLoop] [Before WaitOne]");
+                    
                     allDone.WaitOne();
+
+
+                    Console.WriteLine("[ListeningLoop] [After WaitOne]");
                     //ViewAvailableThreadsAtMoment("wait One");
                     //ViewMemoryAtMoment("wait One");
 
@@ -169,6 +178,9 @@ namespace GilSocket
             // 다시 차단기 올리는 셈
             // 
             allDone.Set();
+            Console.WriteLine("[ManualResetEvent] [allDone.Set()]");
+
+            Thread.Sleep(5000);
 
 
             GC.Collect();
@@ -304,7 +316,7 @@ namespace GilSocket
             StateObject resendState = GetSocketState(key);
             Socket handler = resendState.workSocket;
 
-            socketDic.Remove(key);
+            socketDic.Remove(key, out resendState);
             Console.WriteLine("Socket Dictionary Removed Key = {0}", key);
 
             try
@@ -358,7 +370,7 @@ namespace GilSocket
         {
             if (!IsAlreadyInDictionaryKey(key))
             {
-                socketDic.Add(key, state);
+                socketDic.TryAdd(key, state);
                 return true;
             }
             return false;
@@ -564,6 +576,10 @@ namespace GilSocket
 
                 Console.WriteLine("end!!!!!");
                 Console.WriteLine();
+
+
+                allDone.Set();
+                Console.WriteLine("[SendCallback][ManualResetEvent] [allDone.Set()]");
             }
 
         }
